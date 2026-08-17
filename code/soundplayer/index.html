@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoundSpace p5.js Sound Player</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/addons/p5.sound.min.js"></script>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel: #2e2e4e;
+      --line: #555577;
+      --text: #e0e0ff;
+      --hot: #ffcc66;
+    }
+
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    .wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #canvas-holder {
+      position: relative;
+    }
+
+    #input-row {
+      position: absolute;
+      z-index: 1;
+      top: 120px;
+      left: 20px;
+      width: 678px;
+      display: flex;
+      gap: 8px;
+    }
+
+    #input-slot {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    #input-row input.btn {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 16px;
+      cursor: text;
+      user-select: text;
+    }
+
+    #input-row > .btn {
+      flex: 0 0 90px;
+    }
+
+    #input-row input.btn:focus {
+      outline: 2px solid var(--hot);
+      outline-offset: -1px;
+    }
+
+    #note-settings {
+      width: 720px;
+      box-sizing: border-box;
+      display: grid;
+      grid-template-columns: repeat(7, 90px);
+      gap: 8px;
+      padding: 0 22px 0 20px;
+    }
+
+    .note-setting {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .note-setting .btn {
+      width: 100%;
+      padding: 5px 2px;
+      font-size: 10px;
+    }
+
+    .btn.on {
+      color: var(--bg);
+      background: var(--hot);
+      border-color: var(--hot);
+    }
+
+    #load-file { display: none; }
+
+    canvas { display: block; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main id="canvas-holder">
+      <div id="input-row">
+        <div id="input-slot"></div>
+        <button class="btn" id="save-settings">save</button>
+        <button class="btn" id="load-settings">load</button>
+        <button class="btn" id="clear-sounds">clear</button>
+        <input id="load-file" type="file" accept=".json,application/json">
+      </div>
+    </main>
+    <div id="note-settings"></div>
+  </div>
+  <script src="sketch.js"></script>
+</body>
+</html>
