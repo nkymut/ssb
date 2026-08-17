@@ -1,0 +1,19 @@
+   /* assets/css/styles.css */
+   .p5div {
+    padding: 10px;
+    background: #F0F0F0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .p5livesample {
+    height: 430px;
+    /* width: 410px; */
+    width: 100%;
+    padding: 0px;
+    margin: 0px;
+    top: 0%;
+    left: 0;
+    overflow: hidden;
+    border: none;
+  }

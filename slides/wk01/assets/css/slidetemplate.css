@@ -1,0 +1,136 @@
+body {
+  background-color: #fff;
+}
+
+    /* New styles for details/summary */
+    details {
+      margin: 2rem 0;
+      padding: 0.5rem 1rem;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+  }
+
+  strong {
+    font-weight: bold;
+    color: red;
+  }
+
+  details > summary {
+      cursor: pointer;
+      font-weight: bold;
+      padding: 0.5rem 0;
+      list-style: none; /* Removes the default triangle */
+  }
+
+  /* Hide the 'Details' text */
+  details > summary::marker,
+  details > summary::-webkit-details-marker {
+      display: none;
+  }
+.warning {
+  background-color: #fff0f0; /* Very light pink */
+  border-left: 4px solid #ff6b6b; /* Warning red border */
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 4px;
+  color: #000000; /* Black text */
+}
+
+.p5 {
+  width:420px !important;
+  height:450px !important;
+  margin:0px 0px 50px 60% !important;
+  bottom: 10px !important;
+}
+
+
+iframe {
+  height: 100%;
+  width: 100%;
+  padding: 0px;
+  margin: 0px;
+  position: absolute;
+  top: 0%;
+  left: 0;
+  border: none;
+  overflow: hidden;
+}
+
+.p5div{
+  padding:10px;
+  background:#F0F0F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}  
+
+.p5livesample{
+  height: 430px;
+  /* width: 410px; */
+  width: 100%;
+  padding: 0px;
+  margin: 0px;
+  top: 0%;
+  left: 0;
+  overflow: hidden;
+  border: none;
+}
+
+
+
+:root {
+  --color-background: rgb(167, 95, 95);
+  --color-background-code: #ccc;
+  --color-background-paginate: rgba(128, 128, 128, 0.05);
+  --color-foreground: #000000;
+  --color-highlight: #99c;
+  --color-highlight-hover: #aaf;
+  --color-highlight-heading: #99c;
+  --color-header: #bbb;
+  --color-header-shadow: transparent;
+  font-family: Helvetica, Sans-Serif;
+  color: #000000;
+}
+
+table {
+  width: 100%;
+}
+
+td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+
+h1, h2 {
+  font-family: "Noto Sans", Helvetica, Sans-Serif;
+  font-weight: 600;
+  font-size: 4rem;
+  color: #000000;
+  
+}
+
+ p,li {
+  font-family: "Noto Sans", Helvetica, Sans-Serif;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: 500;
+
+  color: #000000;
+}
+
+h3 {
+  font-family: "Noto Sans", Helvetica, Sans-Serif;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: 500;
+  line-height: 1em;
+  color: #000000;
+}
+
+  .top-heading h1 {
+    position: absolute;
+    top: 0;
+    margin-top: 20;
+  }
