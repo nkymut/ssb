@@ -10,12 +10,14 @@ are currently on and re-evaluates them together as labeled patterns
 (`ch1: …`, `ch2: …`). Stopping a channel removes it from the stack; the others
 keep going.
 
+Also online, no server needed: https://editor.p5js.org/didny/full/UjwBBSL8_
+
 ## Run
 
 Web MIDI and Strudel audio need a real web server (not `file://`):
 
 ```
-cd "2. Codes/p5js/strudel"
+cd code/strudel
 python3 -m http.server 8000
 ```
 

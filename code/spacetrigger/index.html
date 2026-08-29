@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoundSpace&Body p5.js Region Trigger</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/addons/p5.sound.min.js"></script>
+  <!-- ml5.js v1 — handPose (MediaPipe), bodyPose (MoveNet), objectDetection (COCO-SSD) -->
+  <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel: #2e2e4e;
+      --line: #555577;
+      --text: #e0e0ff;
+      --muted: #8888aa;
+      --hot: #ffcc66;
+      --hand: #5ad1ff;
+      --pose: #ffb347;
+      --object: #e879f9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    .wrap {
+      width: min(720px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .btn:disabled { opacity: 0.45; cursor: default; }
+
+    .btn.on {
+      color: var(--bg);
+      background: var(--hot);
+      border-color: var(--hot);
+    }
+
+    /* the three detector toggles light up in their overlay colour */
+    .btn.det-hand.on   { background: var(--hand);   border-color: var(--hand); }
+    .btn.det-pose.on   { background: var(--pose);   border-color: var(--pose); }
+    .btn.det-object.on { background: var(--object); border-color: var(--object); }
+
+    #canvas-holder { position: relative; }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: auto !important;
+      border-radius: 8px;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: clamp(3px, 1.11vw, 8px);
+      align-items: stretch;
+    }
+
+    #controls input.btn {
+      flex: 1 1 160px;
+      min-width: 0;
+      font-size: 16px;   /* < 16px makes iOS zoom the page on focus */
+      cursor: text;
+      user-select: text;
+    }
+
+    #controls input.btn:focus {
+      outline: 2px solid var(--hot);
+      outline-offset: -1px;
+    }
+
+    #controls .spacer { flex: 1 1 auto; }
+
+    #load-file { display: none; }
+
+    #note-settings {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: clamp(3px, 1.11vw, 8px);
+    }
+
+    .note-setting {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .note-setting .btn {
+      width: 100%;
+      padding: 5px 2px;
+      font-size: 10px;
+    }
+
+    .note-setting .note-pad {
+      padding: 10px 2px;
+      font-size: 14px;
+      border-style: dashed;
+    }
+
+    .note-setting .note-pad.zoned { border-style: solid; border-color: var(--hot); }
+
+    .note-setting .note-pad small {
+      display: block;
+      font-size: 9px;
+      color: var(--muted);
+    }
+
+    .note-setting .note-pad.on small { color: var(--bg); }
+
+    .note-setting input[type='file'] { display: none; }
+
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
+
+    @media (max-width: 520px) {
+      body { padding: 8px; }
+      .wrap { gap: 6px; }
+      .btn { padding: 5px 6px; font-size: 11px; }
+      .note-setting { gap: 3px; }
+      .note-setting .btn {
+        min-height: 25px;
+        padding: 3px 0;
+        font-size: 8px;
+        overflow-wrap: anywhere;
+      }
+      .note-setting .note-pad { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main id="canvas-holder"></main>
+
+    <div id="controls">
+      <button class="btn det-hand" id="det-hand">hand</button>
+      <button class="btn det-pose" id="det-pose">pose</button>
+      <button class="btn det-object" id="det-object">object</button>
+      <input class="btn" id="object-labels" type="text" placeholder="object classes (blank = all): cup, bottle, phone"
+             autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="btn" id="mirror">mirror</button>
+      <span class="spacer"></span>
+      <button class="btn" id="save-settings">save</button>
+      <button class="btn" id="load-settings">load</button>
+      <button class="btn" id="clear-zones">clear zones</button>
+      <input id="load-file" type="file" accept=".json,application/json">
+    </div>
+
+    <div id="note-settings"></div>
+
+    <p class="hint">
+      Drag on the video to draw a zone. Drag a zone to move it, its corner to resize,
+      its × to remove. A zone plays its note while a hand / person / object is inside.
+      Keys <code>c d e f g a b</code> play the notes without the camera.
+    </p>
+  </div>
+  <script src="sketch.js"></script>
+</body>
+</html>

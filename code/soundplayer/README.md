@@ -1,34 +1,70 @@
-# soundplayer — p5.js pitched sound player (MIDI + keyboard)
+# soundplayer — a seven-note sampler for keys and MIDI
 
-Plays notes from **MIDI input** (e.g. the micro:bit or ESP32 BLE MIDI
-controllers from this tutorial) or from the **computer keyboard**
-(keys `c d e f g a b` = the C4 major scale).
-
-By default notes play a simple synthesized tone. **Drag and drop an audio
-file** (wav/mp3/ogg/m4a) onto the canvas to play that sample instead — the
-note pitches the sample by changing its playback rate, treating the file as
-C4. Like a classic sampler, higher notes also play faster (chipmunk effect).
-Press `Delete` to return to the default tone.
+Seven notes, `c d e f g a b` (the C4 major scale, MIDI 60–71). Each note
+plays either a simple synthesized tone or **your own audio file**, with one of
+three behaviours — **gate / one-shot / loop** — chosen per note. This is the
+sound engine every later sketch reuses (`regiontrigger` swaps the keys for
+camera zones), and its saved JSON is the portable "instrument".
 
 ## Run
 
-Web MIDI and drag-and-drop audio need a real web server (not `file://`):
+Web MIDI needs a real web server (not `file://`):
 
 ```
-cd code/p5js/soundplayer
+cd code/soundplayer
 python3 -m http.server 8000
 ```
 
 Open http://localhost:8000 in **Chrome or Edge** (Safari has no Web MIDI)
-and allow MIDI access when prompted. Click the page once before playing —
-browsers block audio until a first user gesture.
+and allow MIDI access when prompted. Click the page once before
+playing — browsers block audio until a first user gesture.
 
-## Using the BLE MIDI controllers
+## Play
+
+| Input | How |
+|---|---|
+| computer keyboard | `c d e f g a b` — hold for gate notes |
+| on-screen keys | click / touch a key on the canvas |
+| MIDI | any Note On / Note Off; every pitch plays, not just the seven on screen |
+| text field | the console: shows what you typed |
+
+## Sounds
+
+- **load** under a key, or **drag an audio file onto the key** on the canvas
+  (wav / mp3 / ogg / m4a / aiff / flac). The key shows the file name.
+- No file assigned → a triangle-wave tone at that pitch.
+- `Delete` / `Backspace` or **clear** removes every assigned sound.
+
+## Three behaviours per note
+
+| Button | On key down | On key up | Feels like |
+|---|---|---|---|
+| **gate** | starts | stops | a voice — sound lasts as long as you hold |
+| **one-shot** | plays through once (retriggers if pressed again) | nothing | a hit |
+| **loop** | starts looping; the next press stops it | nothing | a switch, a bed |
+
+Notes stack (layered). To hear the difference, play the same fast pattern
+with one key set to gate and the next to one-shot.
+
+## Save / load
+
+**save** writes `soundspace-sampler.json` — modes and the sounds themselves
+(as data URLs, so the file is self-contained). **load** restores it. The same
+file loads in `regiontrigger`.
+
+## BLE MIDI controllers
 
 1. Connect the device first: Audio MIDI Setup → Show MIDI Studio →
    Bluetooth → Connect ("SoundSpace Touch", "SoundSpace Buttons", or the
-   micro:bit).
-2. The page lists connected MIDI inputs at the top; it rescans
-   automatically when devices appear.
-3. Every incoming Note On plays at its own MIDI pitch (not limited to the
-   one on-screen octave).
+   micro:bit running `mbit/buttonmidi_ble`).
+2. The canvas lists connected MIDI inputs; it rescans automatically when
+   devices appear.
+
+## Extending with AI
+
+Paste `sketch.js` and ask for one change at a time:
+
+- "Add a volume slider per note."
+- "Pitch the assigned sample with the MIDI note, treating the file as C4."
+- "Add a pan button per note: left / centre / right."
+- "Show a waveform of the assigned sound inside its key."
