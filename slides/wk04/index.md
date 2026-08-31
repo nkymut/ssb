@@ -114,10 +114,11 @@ https://www.youtube.com/watch?v=9s87b2cXY_k
 https://www.youtube.com/watch?v=y1F5Gg4bG3o
 
 ---
-# Draping Sound
+# Draping Sound by EJTECH
 https://ejtech.studio/DRAPING-SOUND
 
 <iframe title="vimeo-player" src="https://ejtech.studio/DRAPING-SOUND" width="640" height="360" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"   allowfullscreen></iframe>
+
 ---
 
 <iframe title="vimeo-player" src="https://player.vimeo.com/video/348487065?h=ab5822b185" width="640" height="360" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"   allowfullscreen></iframe>
@@ -135,43 +136,38 @@ https://ejtech.studio/DRAPING-SOUND
 <iframe width="560" height="315" src="https://www.youtube.com/embed/7pC0YSdnss4?si=D4Pw3r-P326132Rq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ---
-# [Hands-on Tutorial]: Camera as a Spatial Input
+# [Hands-On] Camera as a Spatial Input
 
 ## Space Trigger
 https://editor.p5js.org/didny/full/tAxP4q2Vd
 
----
-# Space Trigger App
-
-<iframe width="560" height="315" src="https://editor.p5js.org/didny/full/tAxP4q2Vd" title="Space Trigger App" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+## Space Region Tracker
+https://editor.p5js.org/didny/full/6Uffgv6a2
 
 ---
 # ml5.js <br> 
 ## https://ml5js.org/
 
+### ml5.js Hand Pose Detection
+https://docs.ml5js.org/#/reference/handpose
 
-![bg right:60% fit](./assets/ml5js.png)
+### ml5.js Body Pose Detection
+https://docs.ml5js.org/#/reference/bodypose
 
----
-# ml5.js Website
-<iframe width="560" height="315" src="https://ml5js.org/" title="ml5.js" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+### ml5.js Object Detection
+https://docs.ml5js.org/#/reference/object-detection
 
----
-# ml5.js Hand Pose Detection
-
-
----
-# ml5.js Body Pose Detection
-
-<iframe width="560" height="315" src="https://editor.p5js.org/didny/full/tAxP4q2Vd" title="Body Pose Detection" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+![bg right:50% fit](./assets/ml5js.png)
 
 ---
 # ml5.js Object Detection 
 
 ### 80 Object Classes
 `person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic light, fire hydrant, stop sign, parking meter, bench, bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe, backpack, umbrella, handbag, tie, suitcase, frisbee, skis, snowboard, sports ball, kite, baseball bat, baseball glove, skateboard, surfboard, tennis racket, bottle, wine glass, cup, fork, knife, spoon, bowl, banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut, cake, chair, couch, potted plant, bed, dining table, toilet, TV, laptop, mouse, remote, keyboard, cell phone, microwave, oven, toaster, sink, refrigerator, book, clock, vase, scissors, teddy bear, hair drier, toothbrush`
+
 ---
-## [Hands-on]: Spatial Affordance
+
+## [Hands-on]: Finding Spatial Affordance
 
 - Form pairs
 
