@@ -1,26 +1,86 @@
-// SoundSpace p5.js space trigger
+// SoundSpace&Body — spacetrigger
 //
-// The camera is the instrument. Draw rectangles ("zones") over the camera
-// feed; while a hand, a person or an object is detected inside a zone, that
-// zone's note plays — with the same gate / one-shot / loop behaviours and the
-// same load-a-sound-per-note sampler as soundplayer. A sampler file saved by
-// soundplayer loads here unchanged.
+// ======================================================================
+// PROMPT — paste everything between the lines into an AI coding agent
+// (Claude Code, Cursor, the p5 editor's assistant…) to build this page
+// from scratch, or paste it with this file to change it.
+// ----------------------------------------------------------------------
 //
-//   drag on empty video       draw a new zone (takes the next free note)
-//   drag inside a zone        move it
-//   drag its corner handle    resize it
-//   click its ×               remove it
-//   keys c d e f g a b        play the notes without the camera (test sounds)
-//   Delete / Backspace        clear assigned sounds
+// Build a one-page p5.js sketch called "spacetrigger": the camera becomes
+// the instrument. It is the soundplayer sampler with zones instead of keys.
 //
-// Detection runs inside the page with ml5.js — the same three models CVTrack
-// uses (hand: MediaPipe Hands, pose: MoveNet, object: COCO-SSD). Nothing
-// leaves the browser. The point that has to be inside a zone is the same
-// "anchor" CVTrack publishes: the centre of a hand, the centre of a person's
-// confident keypoints, the centre of an object's box.
+// Libraries: p5.js 1.9.4 + its bundled p5.sound (cdnjs — not p5 2.x, which
+// has no p5.sound), ml5.js v1 for detection, soundfont-player for the
+// default instrument. No build step: index.html + sketch.js on a local web
+// server (the camera needs http://localhost, or HTTPS on a phone).
 //
-//   camera → ml5 detectors → one point per hand / person / object
-//          → is a point inside a zone? → noteOn / noteOff → sampler
+// Show the webcam full width, optionally mirrored, with a menu listing every
+// camera the machine has — built-in, USB, or a phone's front and back (their
+// names only appear after permission is given, so fill the list in again once
+// the video runs; stop the old stream and the detectors before asking for the
+// next one, or the machine will not hand it over). Run up to three ml5
+// models on it, each toggled by a button: handPose (hands), bodyPose /
+// MoveNet (people), objectDetection / COCO-SSD (objects, filterable by a
+// typed list of class names). Reduce each detection to ONE point — the
+// centre of a hand's landmarks, of a person's confident keypoints, of an
+// object's box — and draw it on the video in its own colour
+// (hand #5ad1ff, pose #ffb347, object #e879f9).
+//
+// The user draws rectangles ("zones") on the video by dragging. While a
+// point of the right kind is inside a zone, that zone's note sounds:
+//   camera → detectors → one point each → inside a zone? → noteOn/noteOff
+// A zone keeps its note for 250 ms after the last sighting, so detector
+// flicker does not machine-gun the sound.
+//
+// Each zone has four corner handles: ♪ (top-left) cycles which of the seven
+// notes it plays, ◎ (bottom-left) cycles what it listens for (any / hand /
+// pose / object), × (top-right) removes it, and the bottom-right corner
+// resizes it. Dragging the middle moves it. Several zones may share one
+// note — the note sounds until the LAST of them is empty, so count the
+// things holding a note down rather than keeping one on/off flag.
+//
+// Sound is the soundplayer engine, unchanged: seven notes c d e f g a b
+// (MIDI 60–71), one audio file per note (drop it on a zone or use the
+// "load" button in that note's column), and three trigger modes per note —
+// gate (sounds while occupied), one-shot (plays through), loop (toggles).
+// A note with no file plays a General MIDI instrument; if that cannot be
+// fetched, fall back to a plain oscillator. The keys c d e f g a b and the
+// on-screen pads play the notes without a camera, for testing.
+//
+// A "midi" button over the top-right of the video cycles through the Web
+// MIDI outputs; while one is chosen, every note on/off is also sent there
+// on channel 1, so a DAW can make the sound instead.
+//
+// Save/load writes zones + modes + sounds as one JSON file, and must still
+// open a plain soundplayer file (which has no zones):
+//   { version: 1, notes: [{ note, mode, name, data }], zones: [...] }
+// Zone coordinates are fractions of the frame (0..1), never pixels, so a
+// layout survives a different camera resolution. Keep zones, modes, the
+// detector choice and the MIDI port in localStorage too, so a reload keeps
+// the layout.
+//
+// Look: dark page (#1a1a2e), panels #2e2e4e, text #e0e0ff, highlight
+// #ffcc66, monospace type, and a status band across the top of the video
+// saying what the camera, the models and the sound are doing.
+//
+// Write it for a reader who is a sound designer, not a programmer: plain
+// function names (noteOn, noteOff, updateZones, addZone), short comments
+// that say *why*, no framework, no clever abstractions.
+//
+// ----------------------------------------------------------------------
+// ADD-ONS — write your own feature requests below, then hand the whole
+// comment to the agent. One change at a time works far better than five.
+// Examples to replace:
+//   - "make the volume follow how far the hand is from the zone's centre"
+//   - "trigger only when two hands are inside the same zone"
+//   - "publish each zone's on/off over MQTT so another laptop can play it"
+//
+//   -
+//   -
+//   -
+// ======================================================================
+
+// How to play the page itself: README.md in this folder.
 
 // letter key -> MIDI note (C4 major scale), the same seven notes as soundplayer
 const KEYMAP = { c: 60, d: 62, e: 64, f: 65, g: 67, a: 69, b: 71 };
@@ -37,7 +97,7 @@ const MIN_ZONE = 0.04;      // smaller drags are clicks, not zones (fraction of 
 const HANDLE = 18;          // px: the resize corner and the × box
 const SOURCES = ['any', 'hand', 'pose', 'object'];   // what a zone listens for
 const COLORS = { hand: '#5ad1ff', pose: '#ffb347', object: '#e879f9' }; // same as CVTrack's overlay
-const STORAGE_KEY = 'soundspace-regiontrigger';
+const STORAGE_KEY = 'soundspace-spacetrigger';
 const CAMERA_WAIT_MS = 8000;
 
 // ---- camera + detection state ------------------------------------------
@@ -47,6 +107,9 @@ let cameraReady = false;
 let cameraStatus = 'waiting for camera permission…';
 let srcW = VIDEO_W, srcH = VIDEO_H;
 let mirror = true;          // a webcam facing you feels natural mirrored
+let cameras = [];           // every video input the browser will admit to
+let cameraId = null;        // the one we are using; null = the browser's choice
+let cameraRetry = false;    // one automatic fallback if a saved camera is gone
 let objectLabels = '';      // comma-separated COCO classes, blank = all
 let points = [];            // this frame: [{x, y, kind, label}], x/y 0..1 in screen space
 
@@ -63,11 +126,14 @@ let drag = null;            // {mode: 'new' | 'move' | 'resize', zone, ...}
 
 // ---- sound (the soundplayer engine) ------------------------------------
 
-const activeOscs = new Map();    // note -> {osc, env}, for tone mode
+const activeOscs = new Map();    // note -> {osc, env} — the offline fallback voice
+const activeGm = new Map();      // note -> soundfont node, for the General MIDI voice
 const activeSamples = new Map(); // note -> {file, token}
 const noteSounds = new Map();    // note -> {file, name, data}
 const activeNotes = new Set();   // notes currently sounding (for display)
-const heldNotes = new Set();     // prevents retrigger while a zone / key holds the note
+// note -> Set of things holding it down (zones, 'key', 'pad'). A note with two
+// zones sounds until the last one is empty, so zones can share a note freely.
+const noteHolders = new Map();
 const noteModes = new Map(NOTES.map((note) => [note, 'momentary']));
 const MODES = [
   { id: 'momentary', label: 'gate' },
@@ -80,6 +146,20 @@ let audioReady = false;
 
 const padButtons = new Map();    // note -> the test pad button
 const zoneButtons = new Map();   // note -> the "zone: any" button
+
+// ---- MIDI out (Web MIDI, Chrome/Edge) ----------------------------------
+
+let midiAccess = null;
+let midiOuts = [];          // MIDIOutput ports, refreshed on (dis)connect
+let midiOutIndex = -1;      // -1 = off
+let midiWanted = null;      // port id saved last time, reselected once access arrives
+
+// ---- default voice: a General MIDI instrument, not a beep -----------------
+
+const GM_INSTRUMENT = 'acoustic_grand_piano';   // any name from the MusyngKite set
+const GM_RING_MS = 2500;    // how long a one-shot GM note is left ringing
+let gm = null;              // the loaded soundfont instrument
+let gmState = 'idle';       // idle | loading | ready | error
 
 // ======================================================================
 // setup
@@ -102,12 +182,15 @@ function setup() {
 
   // browsers refuse to make sound until a real gesture — any click will do
   document.addEventListener('pointerdown', startAudio);
-  setTimeout(() => {
-    if (!cameraReady) cameraStatus = 'no camera yet — allow it in the address bar, then reload';
-  }, CAMERA_WAIT_MS);
+  watchCamera();
+  listCameras();
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', listCameras);
+  }
 }
 
 function startAudio() {
+  loadGm();
   if (audioReady) return;
   userStartAudio();
 }
@@ -117,11 +200,12 @@ function startAudio() {
 // ======================================================================
 
 function startCamera() {
-  const constraints = {
-    video: { width: { ideal: VIDEO_W }, height: { ideal: VIDEO_H } },
-    audio: false,
-  };
-  video = createCapture(constraints, () => {
+  const wanted = { width: { ideal: VIDEO_W }, height: { ideal: VIDEO_H } };
+  // No saved choice: let the browser pick, then remember what it gave us.
+  if (cameraId) wanted.deviceId = { exact: cameraId };
+
+  cameraStatus = 'starting the camera…';
+  video = createCapture({ video: wanted, audio: false }, () => {
     // `ideal` is a hint. Size the element to what the camera actually gave
     // us — ml5 reads the element's width/height, so this keeps every model's
     // results in one coordinate space.
@@ -130,10 +214,108 @@ function startCamera() {
     video.size(srcW, srcH);
     resizeCanvas(CANVAS_W, Math.round(CANVAS_W * srcH / srcW));
     cameraReady = true;
-    cameraStatus = `camera ${srcW}×${srcH}`;
+    cameraRetry = false;
+    rememberCamera();
+    cameraStatus = `${cameraName()} ${srcW}×${srcH}`;
+    listCameras();                  // labels only exist once permission is given
     for (const slot of Object.values(detectors)) startSlot(slot);
   });
   video.hide();
+}
+
+// Which camera did we actually get? The browser decides on the first run, and
+// a phone's "environment" camera has a device id like any other.
+function rememberCamera() {
+  const stream = video && video.elt && video.elt.srcObject;
+  const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+  const settings = track && track.getSettings ? track.getSettings() : null;
+  if (settings && settings.deviceId) cameraId = settings.deviceId;
+}
+
+// Let go of the camera properly: without stopping the tracks the machine keeps
+// the old one open and may refuse to hand over the next one.
+function stopCamera() {
+  if (!video) return;
+  const stream = video.elt && video.elt.srcObject;
+  if (stream) for (const track of stream.getTracks()) track.stop();
+  video.remove();
+  video = null;
+  cameraReady = false;
+}
+
+// The detectors hold on to the video element, so they have to let go before
+// it is replaced — startCamera() starts them again on the new one.
+function switchCamera(id) {
+  if (!id || id === cameraId) return;
+  cameraId = id;
+  cameraRetry = false;
+  // A rear camera should not be mirrored; anything pointing at you should be.
+  mirror = !/back|rear|environment/i.test(cameraName());
+  allNotesOff();
+  for (const slot of Object.values(detectors)) stopSlot(slot);
+  stopCamera();
+  startCamera();
+  watchCamera();
+  refreshDetectorButtons();
+  saveLocal();
+}
+
+// A saved camera may have been unplugged since last time — fall back once.
+function watchCamera() {
+  setTimeout(() => {
+    if (cameraReady) return;
+    if (cameraId && !cameraRetry) {
+      cameraRetry = true;
+      cameraId = null;
+      cameraStatus = 'that camera did not open — trying the default one';
+      stopCamera();
+      startCamera();
+      watchCamera();
+      return;
+    }
+    cameraStatus = 'no camera yet — allow it in the address bar, then reload';
+  }, CAMERA_WAIT_MS);
+}
+
+// ---- the camera list ---------------------------------------------------
+// Device labels are blank until the page has been given camera permission,
+// which is why this is called again after the first capture starts.
+
+async function listCameras() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    cameras = devices
+      .filter((d) => d.kind === 'videoinput')
+      .map((d, i) => ({ id: d.deviceId, label: cameraLabel(d.label, i) }));
+  } catch (err) {
+    return;   // some browsers refuse before permission — try again later
+  }
+  buildCameraOptions();
+}
+
+// "HD Pro Webcam C920 (046d:082d)" is mostly noise on a small button
+const cameraLabel = (label, i) =>
+  (label || '').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '').trim() || `camera ${i + 1}`;
+
+const cameraName = () => {
+  const cam = cameras.find((c) => c.id === cameraId);
+  return cam ? cam.label : 'camera';
+};
+
+function buildCameraOptions() {
+  const pick = document.getElementById('camera-pick');
+  if (!pick) return;
+  pick.textContent = '';
+  if (!cameras.length) {
+    pick.appendChild(new Option('camera…', ''));
+    return;
+  }
+  for (const cam of cameras) {
+    const option = new Option(cam.label, cam.id);
+    option.selected = cam.id === cameraId;
+    pick.appendChild(option);
+  }
 }
 
 // ======================================================================
@@ -190,7 +372,7 @@ function failSlot(slot, err) {
   slot.state = 'error';
   slot.model = null;
   slot.running = false;
-  console.error('[regiontrigger]', slot.label, err);
+  console.error('[spacetrigger]', slot.label, err);
 }
 
 const slotBusy = (slot) => !!slot.model && (slot.model.detecting === true || slot.model.isDetecting === true);
@@ -281,8 +463,11 @@ function objectAllowlist() {
 // zones — is a point inside? that is the whole trigger
 // ======================================================================
 
-const zoneFor = (note) => zones.find((z) => z.note === note) || null;
-const freeNote = () => NOTES.find((note) => !zoneFor(note)) ?? null;
+const zonesFor = (note) => zones.filter((z) => z.note === note);
+// a new zone takes the note with the fewest zones — free notes first, and once
+// all seven are used it keeps going instead of refusing to draw
+const nextNote = () => NOTES.reduce((best, note) =>
+  zonesFor(note).length < zonesFor(best).length ? note : best, NOTES[0]);
 const zoneAccepts = (zone, p) => zone.source === 'any' || zone.source === p.kind;
 
 function pointInZone(zone, p) {
@@ -297,10 +482,10 @@ function updateZones(now) {
     const occupied = hit || now - zone.lastSeen < LINGER_MS;
     if (occupied && !zone.occupied) {
       zone.occupied = true;
-      noteOn(zone.note);
+      noteOn(zone.note, 100, zone);
     } else if (!occupied && zone.occupied) {
       zone.occupied = false;
-      noteOff(zone.note);
+      noteOff(zone.note, zone);
     }
   }
 }
@@ -315,7 +500,7 @@ function removeZone(zone) {
   const i = zones.indexOf(zone);
   if (i < 0) return;
   zones.splice(i, 1);
-  if (zone.occupied) noteOff(zone.note);
+  if (zone.occupied) noteOff(zone.note, zone);
   refreshZoneButtons();
   saveLocal();
 }
@@ -327,8 +512,27 @@ function clearZones() {
 
 function cycleSource(zone) {
   zone.source = SOURCES[(SOURCES.indexOf(zone.source) + 1) % SOURCES.length];
+  soundStatus = `zone ${LETTER[zone.note].toUpperCase()} listens for ${zone.source}`;
   refreshZoneButtons();
   saveLocal();
+}
+
+function cycleNote(zone) {
+  silenceZone(zone);
+  zone.note = NOTES[(NOTES.indexOf(zone.note) + 1) % NOTES.length];
+  const shared = zonesFor(zone.note).length;
+  soundStatus = shared > 1
+    ? `zone now plays ${LETTER[zone.note].toUpperCase()} — shared with ${shared - 1} other zone${shared > 2 ? 's' : ''}`
+    : `zone now plays ${LETTER[zone.note].toUpperCase()} (${noteName(zone.note)})`;
+  refreshZoneButtons();
+  saveLocal();
+}
+
+// let go of this zone's hold on its note; it re-triggers next frame
+function silenceZone(zone) {
+  noteOff(zone.note, zone);
+  if (!isHeld(zone.note)) stopNote(zone.note);
+  zone.occupied = false;
 }
 
 // ---- pointer: draw / move / resize on the canvas -----------------------
@@ -352,6 +556,8 @@ function bindCanvasInput(canvas) {
       const zone = zones[i];
       const box = zoneBox(zone);
       if (inBox(px, box.x + box.w - HANDLE, box.y, HANDLE, HANDLE)) { removeZone(zone); return; }
+      if (inBox(px, box.x, box.y, HANDLE, HANDLE)) { cycleNote(zone); return; }
+      if (inBox(px, box.x, box.y + box.h - HANDLE, HANDLE, HANDLE)) { cycleSource(zone); return; }
       if (inBox(px, box.x + box.w - HANDLE, box.y + box.h - HANDLE, HANDLE, HANDLE)) {
         drag = { mode: 'resize', zone };
       } else if (inBox(px, box.x, box.y, box.w, box.h)) {
@@ -363,12 +569,7 @@ function bindCanvasInput(canvas) {
       return;
     }
 
-    const note = freeNote();
-    if (note === null) {
-      soundStatus = 'all seven notes have a zone — remove one first';
-      return;
-    }
-    drag = { mode: 'new', zone: addZone(note, p.x, p.y), ax: p.x, ay: p.y };
+    drag = { mode: 'new', zone: addZone(nextNote(), p.x, p.y), ax: p.x, ay: p.y };
     canvas.setPointerCapture(e.pointerId);
   });
 
@@ -396,7 +597,9 @@ function bindCanvasInput(canvas) {
     if (drag.mode === 'new' && (zone.w < MIN_ZONE || zone.h < MIN_ZONE)) {
       zones.splice(zones.indexOf(zone), 1);   // a click, not a zone
     } else if (drag.mode === 'new') {
-      soundStatus = `zone ${LETTER[zone.note].toUpperCase()} added — put a hand in it`;
+      soundStatus = `zone ${LETTER[zone.note].toUpperCase()} added — put a hand in it, or click ♪ to change its note`;
+    } else if (drag.mode === 'move' || drag.mode === 'resize') {
+      zone.lastSeen = -1e9;   // don't let the drag itself count as a sighting
     }
     drag = null;
     refreshZoneButtons();
@@ -427,9 +630,16 @@ const zoneAt = (p) => [...zones].reverse().find((z) => pointInZone(z, p)) || nul
 // playback — identical to soundplayer, so the two stay interchangeable
 // ======================================================================
 
-function noteOn(note, velocity = 100) {
-  if (heldNotes.has(note)) return;
-  heldNotes.add(note);
+// `holder` is whatever is pressing the note: a zone object, 'key' or 'pad'.
+// Two zones on the same note both hold it; the note ends with the last one.
+function noteOn(note, velocity = 100, holder = 'key') {
+  let holders = noteHolders.get(note);
+  if (!holders) { holders = new Set(); noteHolders.set(note, holders); }
+  const alreadyHeld = holders.size > 0;
+  holders.add(holder);
+  if (alreadyHeld) return;
+
+  midiSend([0x90, note, velocity & 0x7f]);
   const vol = map(velocity, 0, 127, 0, 1);
   const mode = noteModes.get(note) || 'momentary';
 
@@ -442,9 +652,22 @@ function noteOn(note, velocity = 100) {
   lastNote = note;
 }
 
-function noteOff(note) {
-  heldNotes.delete(note);
+function noteOff(note, holder = 'key') {
+  const holders = noteHolders.get(note);
+  if (!holders || !holders.delete(holder)) return;
+  if (holders.size) return;         // another zone is still occupied
+  midiSend([0x80, note, 0]);
   if ((noteModes.get(note) || 'momentary') === 'momentary') stopNote(note);
+}
+
+const isHeld = (note) => (noteHolders.get(note) || new Set()).size > 0;
+
+// drop every hold on a note and silence it, whatever its mode
+function releaseNote(note) {
+  if (isHeld(note)) midiSend([0x80, note, 0]);
+  noteHolders.delete(note);
+  stopNote(note);
+  for (const zone of zonesFor(note)) zone.occupied = false;
 }
 
 function startNote(note, vol, mode) {
@@ -463,6 +686,16 @@ function startNote(note, vol, mode) {
     });
     if (mode === 'loop') sf.loop(0, 1, vol);
     else sf.play(0, 1, vol);
+  } else if (gm) {
+    // General MIDI voice. A soundfont note is a sample: gate and loop hold it
+    // until stopNote, one-shot is left to ring and clean itself up.
+    const node = gm.play(noteName(note), 0, { gain: vol });
+    activeGm.set(note, node);
+    if (mode === 'play-through') {
+      setTimeout(() => {
+        if (activeGm.get(note) === node) stopNote(note);
+      }, GM_RING_MS);
+    }
   } else {
     const osc = new p5.Oscillator('triangle');
     const env = new p5.Envelope();
@@ -489,6 +722,11 @@ function stopNote(note) {
     activeSamples.delete(note);
     sample.file.stop();
   }
+  const gmNode = activeGm.get(note);
+  if (gmNode) {
+    activeGm.delete(note);
+    try { gmNode.stop(); } catch (err) { /* already finished */ }
+  }
   const voice = activeOscs.get(note);
   if (voice) {
     voice.env.triggerRelease(voice.osc);
@@ -500,8 +738,91 @@ function stopNote(note) {
 
 function allNotesOff() {
   for (const note of [...activeNotes]) stopNote(note);
-  heldNotes.clear();
+  midiSend([0xb0, 123, 0]);   // CC 123: all notes off, for anything we missed
+  noteHolders.clear();
   for (const zone of zones) zone.occupied = false;
+}
+
+// ---- the General MIDI voice -------------------------------------------
+// soundfont-player streams the instrument's samples from a CDN, so it needs
+// the network and a running AudioContext — load it after the first gesture.
+
+function loadGm() {
+  if (gmState !== 'idle') return;
+  if (typeof Soundfont === 'undefined') { gmState = 'error'; return; }
+  gmState = 'loading';
+  Soundfont.instrument(getAudioContext(), GM_INSTRUMENT).then((instrument) => {
+    gm = instrument;
+    gmState = 'ready';
+  }, (err) => {
+    gmState = 'error';   // offline: startNote falls back to the oscillator
+    console.warn('[spacetrigger] GM instrument failed, using an oscillator', err);
+  });
+}
+
+const gmStatus = () => ({
+  idle: 'GM waiting', loading: 'GM loading…', ready: GM_INSTRUMENT.replace(/_/g, ' '), error: 'GM offline — beep',
+}[gmState]);
+
+// ---- MIDI out ----------------------------------------------------------
+// The midi button cycles: off → each output the browser can see → off.
+// Every noteOn/noteOff above is mirrored to the chosen port on channel 1,
+// whatever the note's gate / one-shot / loop mode — the receiver decides.
+// On macOS, enable the IAC Driver (Audio MIDI Setup) to reach a DAW.
+
+const midiOutput = () => (midiOutIndex >= 0 ? midiOuts[midiOutIndex] : null);
+
+function midiSend(bytes) {
+  const out = midiOutput();
+  if (!out) return;
+  try { out.send(bytes); } catch (err) { /* port vanished mid-send */ }
+}
+
+function requestMidi(then) {
+  if (midiAccess) { then(); return; }
+  if (!navigator.requestMIDIAccess) {
+    soundStatus = 'no Web MIDI in this browser — use Chrome or Edge';
+    return;
+  }
+  navigator.requestMIDIAccess().then((access) => {
+    midiAccess = access;
+    access.onstatechange = refreshMidiOuts;   // plugging / unplugging devices
+    refreshMidiOuts();
+    then();
+  }, () => { soundStatus = 'MIDI access denied'; });
+}
+
+function refreshMidiOuts() {
+  const chosen = midiOutput();
+  midiOuts = midiAccess ? [...midiAccess.outputs.values()] : [];
+  const wanted = (chosen && chosen.id) || midiWanted;
+  midiOutIndex = wanted ? midiOuts.findIndex((o) => o.id === wanted) : -1;
+  if (midiOutIndex >= 0) midiWanted = null;   // found — otherwise remember it for a replug
+  refreshMidiButton();
+}
+
+function cycleMidiOut() {
+  requestMidi(() => {
+    if (!midiOuts.length) {
+      soundStatus = 'no MIDI outputs found — connect a device or enable the IAC driver';
+      midiOutIndex = -1;
+      refreshMidiButton();
+      return;
+    }
+    midiSend([0xb0, 123, 0]);   // release anything held on the port we leave
+    midiOutIndex = midiOutIndex + 1 >= midiOuts.length ? -1 : midiOutIndex + 1;
+    const out = midiOutput();
+    soundStatus = out ? `MIDI out: ${out.name}` : 'MIDI out off';
+    refreshMidiButton();
+    saveLocal();
+  });
+}
+
+function refreshMidiButton() {
+  const button = document.getElementById('midi-out');
+  const out = midiOutput();
+  button.textContent = out ? `midi: ${shortenName(out.name || 'output')}` : 'midi';
+  button.classList.toggle('on', !!out);
 }
 
 // ---- keyboard: test the sounds without a camera ------------------------
@@ -515,13 +836,13 @@ function keyPressed() {
   if (typingInField()) return;
   if (keyCode === DELETE || keyCode === BACKSPACE) { clearAssignedSounds(); return; }
   const note = KEYMAP[key.toLowerCase()];
-  if (note !== undefined) noteOn(note);
+  if (note !== undefined) noteOn(note, 100, 'key');
 }
 
 function keyReleased() {
   if (typingInField()) return;
   const note = KEYMAP[key.toLowerCase()];
-  if (note !== undefined) noteOff(note);
+  if (note !== undefined) noteOff(note, 'key');
 }
 
 // ---- sounds per note ---------------------------------------------------
@@ -573,9 +894,9 @@ function buildNoteSettings() {
     pad.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       pad.setPointerCapture(e.pointerId);
-      noteOn(note);
+      noteOn(note, 100, 'pad');
     });
-    const release = () => noteOff(note);
+    const release = () => noteOff(note, 'pad');
     pad.addEventListener('pointerup', release);
     pad.addEventListener('pointercancel', release);
     padButtons.set(note, pad);
@@ -584,9 +905,15 @@ function buildNoteSettings() {
     const zoneButton = document.createElement('button');
     zoneButton.className = 'btn';
     zoneButton.textContent = 'no zone';
+    // with several zones on one note, this sets them all to the same source
     zoneButton.addEventListener('click', () => {
-      const zone = zoneFor(note);
-      if (zone) cycleSource(zone);
+      const list = zonesFor(note);
+      if (!list.length) return;
+      const next = SOURCES[(SOURCES.indexOf(list[0].source) + 1) % SOURCES.length];
+      for (const zone of list) zone.source = next;
+      soundStatus = `${list.length} zone${list.length === 1 ? '' : 's'} on ${LETTER[note].toUpperCase()} listen for ${next}`;
+      refreshZoneButtons();
+      saveLocal();
     });
     zoneButtons.set(note, zoneButton);
     group.appendChild(zoneButton);
@@ -615,10 +942,7 @@ function buildNoteSettings() {
       button.dataset.mode = mode.id;
       button.setAttribute('aria-label', `${noteName(note)} ${mode.label} trigger`);
       button.addEventListener('click', () => {
-        stopNote(note);
-        heldNotes.delete(note);
-        const zone = zoneFor(note);
-        if (zone) zone.occupied = false;   // re-enter the zone to trigger in the new mode
+        releaseNote(note);   // re-enter the zone to trigger in the new mode
         noteModes.set(note, mode.id);
         refreshModeButtons();
         saveLocal();
@@ -639,11 +963,14 @@ function refreshModeButtons() {
 
 function refreshZoneButtons() {
   for (const note of NOTES) {
-    const zone = zoneFor(note);
+    const list = zonesFor(note);
+    const sources = [...new Set(list.map((z) => z.source))];
     const button = zoneButtons.get(note);
-    button.textContent = zone ? `zone: ${zone.source}` : 'no zone';
-    button.disabled = !zone;
-    padButtons.get(note).classList.toggle('zoned', !!zone);
+    button.textContent = !list.length ? 'no zone'
+      : list.length === 1 ? `zone: ${sources[0]}`
+      : `${list.length} zones: ${sources.length === 1 ? sources[0] : 'mixed'}`;
+    button.disabled = !list.length;
+    padButtons.get(note).classList.toggle('zoned', list.length > 0);
   }
 }
 
@@ -660,11 +987,13 @@ function bindControls() {
   }
   const labels = document.getElementById('object-labels');
   labels.addEventListener('input', () => { objectLabels = labels.value; saveLocal(); });
+  document.getElementById('camera-pick').addEventListener('change', (e) => switchCamera(e.target.value));
   document.getElementById('mirror').addEventListener('click', () => {
     mirror = !mirror;
     refreshDetectorButtons();
     saveLocal();
   });
+  document.getElementById('midi-out').addEventListener('click', cycleMidiOut);
   document.getElementById('clear-zones').addEventListener('click', clearZones);
   document.getElementById('save-settings').addEventListener('click', saveSettings);
   document.getElementById('load-settings').addEventListener('click', () => {
@@ -686,7 +1015,9 @@ function saveLocal() {
       modes: NOTES.map((note) => [note, noteModes.get(note)]),
       detectors: Object.fromEntries(Object.values(detectors).map((s) => [s.key, s.enabled])),
       mirror,
+      cameraId,
       objectLabels,
+      midiOut: midiOutput() ? midiOutput().id : midiWanted,   // midiWanted: access not granted yet
     }));
   } catch (err) { /* private mode etc. — nothing to do */ }
 }
@@ -699,8 +1030,13 @@ function restoreLocal() {
     if (Array.isArray(saved.zones)) applyZones(saved.zones);
     if (Array.isArray(saved.modes)) for (const [note, mode] of saved.modes) applyMode(note, mode);
     if (typeof saved.mirror === 'boolean') mirror = saved.mirror;
+    if (typeof saved.cameraId === 'string' && saved.cameraId) cameraId = saved.cameraId;
     if (typeof saved.objectLabels === 'string') objectLabels = saved.objectLabels;
     document.getElementById('object-labels').value = objectLabels;
+    if (typeof saved.midiOut === 'string') {
+      midiWanted = saved.midiOut;
+      requestMidi(() => {});   // permission already granted last time, so no prompt
+    }
     const chosen = saved.detectors && typeof saved.detectors === 'object' ? saved.detectors : null;
     for (const slot of Object.values(detectors)) setDetector(slot, chosen ? !!chosen[slot.key] : slot.key === 'hand');
   } else {
@@ -714,7 +1050,7 @@ function applyZones(list) {
   for (const zone of [...zones]) removeZone(zone);
   for (const item of list) {
     const note = Number(item.note);
-    if (!NOTES.includes(note) || zoneFor(note)) continue;
+    if (!NOTES.includes(note)) continue;
     const zone = addZone(note, constrain(Number(item.x) || 0, 0, 1), constrain(Number(item.y) || 0, 0, 1));
     zone.w = constrain(Number(item.w) || 0, MIN_ZONE, 1 - zone.x);
     zone.h = constrain(Number(item.h) || 0, MIN_ZONE, 1 - zone.y);
@@ -840,14 +1176,19 @@ function drawZones() {
     strokeWeight(zone.occupied ? 3 : 1.5);
     rect(box.x, box.y, box.w, box.h, 6);
 
-    // corner handles: × to remove, ◢ to resize
+    // corner handles: ♪ note, × remove, ◎ what it listens for, ◢ resize
     noStroke();
     fill(c.levels[0], c.levels[1], c.levels[2], 200);
+    rect(box.x, box.y, HANDLE, HANDLE, 6, 0, 0, 0);
     rect(box.x + box.w - HANDLE, box.y, HANDLE, HANDLE, 0, 6, 0, 0);
+    rect(box.x, box.y + box.h - HANDLE, HANDLE, HANDLE, 0, 0, 0, 6);
     triangle(box.x + box.w, box.y + box.h - HANDLE, box.x + box.w, box.y + box.h, box.x + box.w - HANDLE, box.y + box.h);
     fill('#1a1a2e');
     textAlign(CENTER, CENTER); textSize(12);
+    text('♪', box.x + HANDLE / 2, box.y + HANDLE / 2 - 1);
     text('×', box.x + box.w - HANDLE / 2, box.y + HANDLE / 2 - 1);
+    textSize(10);
+    text(zone.source === 'any' ? '◎' : zone.source[0], box.x + HANDLE / 2, box.y + box.h - HANDLE / 2 - 1);
 
     // labels: letter big, then note / source / sound
     fill(zone.occupied ? '#1a1a2e' : '#e0e0ff');
@@ -856,7 +1197,9 @@ function drawZones() {
     if (box.h > 44 && box.w > 60) {
       textSize(10);
       const assigned = noteSounds.get(zone.note);
-      const line = `${noteName(zone.note)} · ${zone.source} · ${assigned ? shortenName(assigned.name) : 'tone'}`;
+      const shared = zonesFor(zone.note).length;
+      const voice = assigned ? shortenName(assigned.name) : (gm ? 'GM' : 'tone');
+      const line = `${noteName(zone.note)} · ${zone.source} · ${voice}${shared > 1 ? ` · ×${shared}` : ''}`;
       text(line, box.x + box.w / 2, box.y + box.h / 2 + 14);
     }
     textAlign(LEFT, BASELINE);
@@ -887,20 +1230,21 @@ function drawHUD() {
 
   fill('#8888aa'); textSize(11);
   const det = Object.values(detectors).map((s) => `${s.label} ${slotStatus(s)}`).join(' · ');
-  text(`${cameraStatus} · ${det}`, 16, 40);
+  text(`${cameraStatus} · ${det} · ${gmStatus()}`, 16, 40);
   text(soundStatus, 16, 54);
 
+  // the right column starts at y 40 — the midi button sits over the top line
   textAlign(RIGHT, BASELINE);
   if (!audioReady) {
     fill('#ffcc66'); textSize(12);
-    text('click anywhere to start audio', width - 16, 22);
+    text('click anywhere to start audio', width - 16, 40);
   } else if (lastNote !== null) {
     fill('#ffcc66'); textSize(12);
-    text(`last note: ${lastNote} (${noteName(lastNote)})`, width - 16, 22);
+    text(`last note: ${lastNote} (${noteName(lastNote)})`, width - 16, 40);
   }
   if (!zones.length && cameraReady) {
     fill('#8888aa'); textSize(11);
-    text('drag on the video to draw a zone', width - 16, 40);
+    text('drag on the video to draw a zone', width - 16, 54);
   }
   textAlign(LEFT, BASELINE);
 }

@@ -13,7 +13,7 @@ color: black
 backgroundColor: white
 ---
 
-<link rel="stylesheet" href="../assets/css/slidetemplate.css">
+<link rel="stylesheet" href="../assets/css/slidetemplate2.css">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@ backgroundColor: white
 
 
 <!-- _class: lead -->
-# <!-- fit--> Sound, Space, and Body (SSB)
+# Sound, Space, and Body (SSB)
 
 ---
 
@@ -47,7 +47,6 @@ backgroundColor: white
 - Write "Natural" on the left and "Man-made" on the right.
 - Listen to the sounds and write down each sound you can recognise.
 - Put a circle next to the sounds you find pleasant, and a cross next to the sounds you find unpleasant.
-
 
 ---
 
@@ -358,6 +357,33 @@ Build a simple ~~percussive~~ responsive device that triggers sound through sens
 3. Rephrase that action using a different verb (stick)
 4. Find an adjective associated with that verb (???)
 5. Repeat for other sensor types (e.g. light sensor, motion sensor, etc.) and material combinations (e.g. metal, wood, water, etc.)
+---
+# Assignment 01: 3 Sound Interactions
+# Sensor Misdirection 
+
+1. First, choose one sensor type (e.g. touch sensor)
+2. Describe in verbs an action that the sensor can perceive (touch)
+3. Rephrase that action using a different verb (stick)
+4. Find an adjective associated with that verb (???)
+5. Repeat for other sensor types (e.g. light sensor, motion sensor, etc.) and material combinations (e.g. metal, wood, water, etc.)
+
+---
+1. Pick an object or a body part (e.g. a box, a door, a hand.)
+
+1. List possible actions you can perform with it as verbs 
+(e.g. open, shake, punch, squeeze.)
+
+1. Identify which actions can be detected using the micro:bit and available sensors. (e.g. opening a box → light sensor)
+
+1. Add an adjective that gives the action an emotional or expressive quality (e.g. joyful opening, nervous shaking, gentle knocking.)
+
+1. Then design a sound response that expresses this quality and is triggered by the action.
+
+1. Sketch the interaction, prototype it, and record a short video demonstrating how it works.
+
+1. Create three clearly different interactions
+
+You may vary the object, body part, action, sensor, sound response, or physical arrangement.
 
 ---
 

@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 200" width="960" height="200"
+     role="img" aria-labelledby="title desc">
+  <title id="title">Signal chain: body action to sound</title>
+  <desc id="desc">A body action reaches the micro:bit, which sends a keystroke over Bluetooth
+  HID to the phone or laptop, whose operating system passes the key event to the browser,
+  where a p5.js sketch turns it into sound.</desc>
+
+  <!--
+    Slide version of 1. Tutorials/Week1/img/signalchain.svg — same geometry, but
+    fixed to the deck's palette instead of following the reader's colour scheme.
+    No background rect: it sits transparently on the slide's #1E1E5C.
+    If you edit one of these two files, edit the other.
+  -->
+  <style>
+    text   { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    .box   { fill: #2E2E8B; stroke: #A8A8FF; stroke-width: 1.5; }
+    .hdr   { fill: #8888CC; font-size: 13px; letter-spacing: .05em; }
+    .body  { fill: #FFFFFF; font-size: 14.5px; }
+    .keys  { fill: #A8A8FF; font-size: 13px;
+             font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; }
+    .lbl   { fill: #8888CC; font-size: 11.5px; letter-spacing: .04em; }
+    .conn  { stroke: #A8A8FF; stroke-width: 1.6; fill: none; }
+    .head  { fill: #A8A8FF; }
+  </style>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <!-- ======================================================= 1. body action -->
+  <text class="hdr" x="105" y="30" text-anchor="middle">body action</text>
+  <rect class="box" x="20" y="48" width="170" height="118" rx="10"/>
+  <text class="body" x="105" y="88"  text-anchor="middle">press</text>
+  <text class="body" x="105" y="112" text-anchor="middle">touch</text>
+  <text class="body" x="105" y="136" text-anchor="middle">tilt / shake</text>
+
+  <text class="lbl" x="230" y="100" text-anchor="middle">finger</text>
+  <line class="conn" x1="196" y1="112" x2="262" y2="112" marker-end="url(#arrow)"/>
+
+  <!-- ====================================================== 2. micro:bit v2 -->
+  <text class="hdr" x="355" y="30" text-anchor="middle">micro:bit v2</text>
+  <rect class="box" x="270" y="48" width="170" height="118" rx="10"/>
+  <text class="body" x="355" y="92"  text-anchor="middle">types</text>
+  <text class="body" x="355" y="114" text-anchor="middle">one letter</text>
+  <text class="keys" x="355" y="140" text-anchor="middle">a s d f g h</text>
+
+  <text class="lbl" x="480" y="100" text-anchor="middle">BLE HID</text>
+  <line class="conn" x1="446" y1="112" x2="512" y2="112" marker-end="url(#arrow)"/>
+
+  <!-- ==================================================== 3. phone / laptop -->
+  <text class="hdr" x="605" y="30" text-anchor="middle">phone / laptop</text>
+  <rect class="box" x="520" y="48" width="170" height="118" rx="10"/>
+  <text class="body" x="605" y="100" text-anchor="middle">the OS sees</text>
+  <text class="body" x="605" y="124" text-anchor="middle">a keyboard</text>
+
+  <text class="lbl" x="730" y="100" text-anchor="middle">key event</text>
+  <line class="conn" x1="696" y1="112" x2="762" y2="112" marker-end="url(#arrow)"/>
+
+  <!-- =========================================================== 4. browser -->
+  <text class="hdr" x="855" y="30" text-anchor="middle">browser</text>
+  <rect class="box" x="770" y="48" width="170" height="118" rx="10"/>
+  <text class="body" x="855" y="100" text-anchor="middle">p5.js sketch</text>
+  <text class="body" x="855" y="124" text-anchor="middle">&#8594; sound</text>
+
+  <text class="lbl" x="480" y="192" text-anchor="middle">no drivers &#183; no cables &#183; no MIDI setup</text>
+</svg>

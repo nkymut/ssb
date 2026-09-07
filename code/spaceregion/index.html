@@ -3,13 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SoundSpace&Body p5.js Space Trigger</title>
+  <title>SoundSpace&Body p5.js Space Region</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/addons/p5.sound.min.js"></script>
   <!-- ml5.js v1 — handPose (MediaPipe), bodyPose (MoveNet), objectDetection (COCO-SSD) -->
   <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
-  <!-- soundfont-player — General MIDI instruments as the default note sound -->
-  <script src="https://unpkg.com/soundfont-player@0.12.0/dist/soundfont-player.js"></script>
+  <!-- Strudel makes the sound; the regions only move its knobs -->
+  <script src="https://unpkg.com/@strudel/web@1.3.0"></script>
   <style>
     :root {
       --bg: #1a1a2e;
@@ -21,6 +20,8 @@
       --hand: #5ad1ff;
       --pose: #ffb347;
       --object: #e879f9;
+      --x: #ffcc66;
+      --y: #66ccff;
     }
 
     * { box-sizing: border-box; }
@@ -65,12 +66,20 @@
       border-color: var(--hot);
     }
 
-    /* the three detector toggles light up in their overlay colour */
     .btn.det-hand.on   { background: var(--hand);   border-color: var(--hand); }
     .btn.det-pose.on   { background: var(--pose);   border-color: var(--pose); }
     .btn.det-object.on { background: var(--object); border-color: var(--object); }
 
     #canvas-holder { position: relative; }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: auto !important;
+      border-radius: 8px;
+      touch-action: none;
+      cursor: crosshair;
+    }
 
     /* MIDI output picker floats over the video, top right — next to the HUD */
     #midi-out {
@@ -82,16 +91,7 @@
       font-size: 11px;
     }
 
-    canvas {
-      display: block;
-      width: 100% !important;
-      height: auto !important;
-      border-radius: 8px;
-      touch-action: none;
-      cursor: crosshair;
-    }
-
-    #controls {
+    #controls, #transport {
       display: flex;
       flex-wrap: wrap;
       gap: clamp(3px, 1.11vw, 8px);
@@ -118,60 +118,110 @@
       outline-offset: -1px;
     }
 
-    #controls .spacer { flex: 1 1 auto; }
+    #controls .spacer, #transport .spacer { flex: 1 1 auto; }
 
     #load-file { display: none; }
 
-    #note-settings {
+    /* ---- the Strudel sequence ---- */
+
+    #code {
+      width: 100%;
+      min-height: 190px;
+      resize: vertical;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+      background: #16162a;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      outline: none;
+      white-space: pre;
+      overflow-wrap: normal;
+      overflow-x: auto;
+    }
+
+    #code:focus { border-color: var(--hot); }
+
+    #code-error {
+      margin: 0;
+      min-height: 15px;
+      font-size: 11px;
+      color: #ff8888;
+    }
+
+    /* ---- one card per region ---- */
+
+    #region-cards {
       display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
       gap: clamp(3px, 1.11vw, 8px);
     }
 
-    .note-setting {
+    .region-card {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 5px;
+      padding: 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
     }
 
-    .note-setting .btn {
-      width: 100%;
-      padding: 5px 2px;
+    .region-card.active { border-color: var(--hot); }
+
+    .region-head {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .region-head .name { color: var(--hot); }
+    .region-head .preset { color: var(--muted); flex: 1 1 auto; }
+
+    .region-card .btn { padding: 4px 6px; font-size: 10px; }
+
+    .region-row { display: flex; flex-direction: column; gap: 2px; }
+
+    .region-row .label {
+      display: flex;
+      justify-content: space-between;
       font-size: 10px;
-    }
-
-    .note-setting .note-pad {
-      padding: 10px 2px;
-      font-size: 14px;
-      border-style: dashed;
-    }
-
-    .note-setting .note-pad.zoned { border-style: solid; border-color: var(--hot); }
-
-    .note-setting .note-pad small {
-      display: block;
-      font-size: 9px;
       color: var(--muted);
     }
 
-    .note-setting .note-pad.on small { color: var(--bg); }
+    .region-row .label b { color: var(--text); font-weight: normal; }
 
-    .note-setting input[type='file'] { display: none; }
+    .meter {
+      height: 6px;
+      background: #16162a;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--axis, var(--hot));
+    }
+
+    .region-row.x { --axis: var(--x); }
+    .region-row.y { --axis: var(--y); }
+
+    .region-buttons { display: flex; gap: 4px; }
+    .region-buttons .btn { flex: 1 1 auto; }
 
     .hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
+    .hint code { color: var(--text); }
 
     @media (max-width: 520px) {
       body { padding: 8px; }
       .wrap { gap: 6px; }
       .btn { padding: 5px 6px; font-size: 11px; }
-      .note-setting { gap: 3px; }
-      .note-setting .btn {
-        min-height: 25px;
-        padding: 3px 0;
-        font-size: 8px;
-        overflow-wrap: anywhere;
-      }
-      .note-setting .note-pad { font-size: 11px; }
+      #code { min-height: 150px; font-size: 12px; }
     }
   </style>
 </head>
@@ -192,20 +242,36 @@
       <span class="spacer"></span>
       <button class="btn" id="save-settings">save</button>
       <button class="btn" id="load-settings">load</button>
-      <button class="btn" id="clear-zones">clear zones</button>
+      <button class="btn" id="clear-regions">clear regions</button>
       <input id="load-file" type="file" accept=".json,application/json">
     </div>
 
-    <div id="note-settings"></div>
+    <div id="region-cards"></div>
+
+    <textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    <p id="code-error"></p>
+
+    <div id="transport">
+      <button class="btn" id="play">play</button>
+      <button class="btn" id="stop">stop</button>
+      <button class="btn on" id="hand-gate">hands</button>
+      <span class="spacer"></span>
+      <button class="btn" id="midi-channel">ch 1</button>
+      <button class="btn" id="reset-code">reset sequence</button>
+    </div>
 
     <p class="hint">
-      Drag on the video to draw a zone. Drag a zone to move it, its corner to resize,
-      its × to remove, its ♪ to change which note it plays. A zone plays its note
-      while a hand / person / object is inside. Keys <code>c d e f g a b</code> play
-      the notes without the camera. <code>midi</code> (top right of the video) cycles
-      through MIDI outputs and sends every note there too.
+      Drag on the video to draw a region. Its <b>X</b> and <b>Y</b> are two
+      continuous controls: <code>r1x</code> <code>r1y</code> for the first region,
+      <code>r2x</code> <code>r2y</code> for the second, and so on — use them
+      anywhere in the sequence above, then press <b>play</b>
+      (<code>Ctrl/Cmd + Enter</code> re-runs it). The same movement is sent as
+      MIDI CC to the output chosen at the top right of the video.
+      With <b>hands</b> on, the music only plays while an open hand is in
+      frame — make a fist and it fades out.
     </p>
   </div>
+  <script src="strudel-sounds.js"></script>
   <script src="sketch.js"></script>
 </body>
 </html>

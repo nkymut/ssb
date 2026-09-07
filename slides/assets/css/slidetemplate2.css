@@ -13,6 +13,43 @@ body {
   
 }
 
+
+
+section {
+  --marp-shiki-background: #fff;
+  --color-background-code: #fff;
+}
+
+code,
+pre,
+marp-pre,
+pre code,
+marp-pre code,
+.hljs {
+  background: #fff !important;
+  background-color: #fff !important;
+  color: #020202 !important;
+}
+
+pre,
+marp-pre {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+pre code,
+marp-pre code,
+pre .hljs,
+marp-pre .hljs {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 a {
   color: #6c3cfd
 } 
